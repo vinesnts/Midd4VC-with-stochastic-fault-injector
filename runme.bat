@@ -31,8 +31,8 @@ for /L %%i in (1,1,%N_EXP%) do (
     echo Run experiment: %%i/%N_EXP% - !EXP_DIR!
 
     REM Run server and vehicles in background
-    start /B cmd /c "python server\Midd4VCServer.py f !EXP_DIR! >> server.log 2>>&1"
-    start /B cmd /c "python client\vehicles.py f !EXP_DIR! >> vehicles.log 2>>&1"
+    start /B cmd /c "python server\Midd4VCServer.py f !EXP_DIR! >> experiments\!TIMESTAMP!\server.log 2>>&1"
+    start /B cmd /c "python client\vehicles.py f !EXP_DIR! >> experiments\!TIMESTAMP!\vehicles.log 2>>&1"
 
     REM Sleep 600 seconds
     timeout /t !SECONDS_IN_HOUR! /nobreak >nul
