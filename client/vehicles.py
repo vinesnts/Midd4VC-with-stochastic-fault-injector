@@ -60,7 +60,7 @@ if __name__ == "__main__":
     threads = []
 
     for vid in vehicle_ids:
-        t = threading.Thread(target=run_vehicle, args=(vid,args and args[0] == 'f'))
+        t = threading.Thread(target=run_vehicle, args=(vid,args and args[0] == 'f', args and args[1]))
         t.start()
         threads.append(t)
 
