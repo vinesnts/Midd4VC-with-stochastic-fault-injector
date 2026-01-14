@@ -1,8 +1,11 @@
 import os
 import json
+import sys
 import time
+import numpy as np
 import paho.mqtt.client as mqtt
 from Midd4VCEngine import Midd4VCEngine
+from FaultInjector import inject_faults_on_broker
 
 TOPIC_VEHICLE_REGISTER = "vc/vehicle/+/register/request"
 TOPIC_JOB_SUBMIT = "vc/client/+/job/submit"
@@ -77,13 +80,20 @@ class Midd4VCServer:
         else:
             self.on_message(client, userdata, msg)
 
+    def get_server_status(self):
+        return self.client.is_connected()
+
 if __name__ == "__main__":
+    args = sys.argv[1:]
+    
     server = Midd4VCServer()
     server.start()
-
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        # print("[Midd4VCServer] Stopping server...")
-        server.stop()
+    
+    if args and args[0] == 'f' and args[1]:
+        inject_faults_on_broker(server, args[1])
+    else:
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            server.stop()

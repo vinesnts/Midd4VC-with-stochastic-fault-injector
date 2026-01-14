@@ -1,7 +1,15 @@
+import os
+import sys
 import time
 import threading
 from Midd4VCClient import Midd4VCClient
+from FaultInjector import inject_faults_on_vehicle
 from jobs import job_catalog
+from dotenv import load_dotenv
+
+load_dotenv()
+
+NV = int(os.getenv("NV", 40))
 
 class Vehicle:
     def __init__(self, vehicle_id, model, make, year):
@@ -30,25 +38,29 @@ class Vehicle:
                 "error": f"Function execution failed: {str(e)}"
             }
 
-def run_vehicle(vehicle_id):
+def run_vehicle(vehicle_id, with_fault=False, folder=None):
     vehicle = Vehicle(vehicle_id=vehicle_id, model="ModelX", make="MakeY", year=2020)
     vc = Midd4VCClient(role="vehicle", client_id=vehicle.vehicle_id, model=vehicle.model, make=vehicle.make, year=vehicle.year)
     vc.set_job_handler(vehicle.job_handler)
     vc.start()
 
-    try:
-        while True:
-            time.sleep(10)
-    except KeyboardInterrupt:
-        print(f"Stopping vehicle {vehicle_id}...")
-        vc.stop()
+    if with_fault:
+        inject_faults_on_vehicle(vc, folder)
+    else:
+        try:
+            while True:
+                time.sleep(10)
+        except KeyboardInterrupt:
+            print(f"Stopping vehicle {vehicle_id}...")
+            vc.stop()
 
 if __name__ == "__main__":
-    vehicle_ids = [f"veh{i}" for i in range(1, 6)]  # 500 vehicles
+    args = sys.argv[1:]
+    vehicle_ids = [f"veh{i}" for i in range(1, NV + 1)]  # 500 vehicles
     threads = []
 
     for vid in vehicle_ids:
-        t = threading.Thread(target=run_vehicle, args=(vid,))
+        t = threading.Thread(target=run_vehicle, args=(vid,args and args[0] == 'f'))
         t.start()
         threads.append(t)
 

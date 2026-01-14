@@ -185,3 +185,6 @@ class Midd4VCClient:
                 self.client.reconnect()
             except Exception as e:
                 print(f"[{self.role.capitalize()} {self.client_id}] Reconnection failed: {e}")
+
+    def get_server_status(self):
+        return self.client.is_connected()

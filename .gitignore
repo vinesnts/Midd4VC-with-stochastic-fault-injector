@@ -3,6 +3,7 @@ venv/
 ENV/
 env/
 .venv/
+.env
 
 # Arquivos Python compilados
 __pycache__/
@@ -14,6 +15,8 @@ __pycache__/
 *.tmp
 *.bak
 *.swp
+*.csv
+*.ods
 .DS_Store
 
 # Arquivos de pacotes Python
