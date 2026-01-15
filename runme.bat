@@ -27,6 +27,7 @@ for /L %%i in (1,1,%N_EXP%) do (
     )
 
     set EXP_DIR=%CD%\experiments\!TIMESTAMP!
+    mkdir "!EXP_DIR!" 2>nul
 
     echo Run experiment: %%i/%N_EXP% - !EXP_DIR!
 
