@@ -20,8 +20,8 @@ import time
 """
 
 def assign_jobs_least_loaded(engine):
-      
-    engine.check_job_timeouts()
+
+    # engine.check_job_timeouts()
 
     busy_vehicles = set(engine.jobs_in_progress.values())
 
@@ -37,7 +37,7 @@ def assign_jobs_least_loaded(engine):
 
         # assigned_vehicle, load = sorted_vehicles[0]
         assigned_vehicle = available_vehicles.pop(0)  # Pick the first free vehicle
-            
+
         if not assigned_vehicle:
             # No vehicle available now
             engine.jobs_queue.insert(0, job)  # put the job back in the queue
@@ -50,7 +50,6 @@ def assign_jobs_least_loaded(engine):
             "job_data": job
         }
 
-        print(f"[Midd4VCServer] Assigning job {job_id} to vehicle {assigned_vehicle}")
         if engine.mqtt_client:
                 engine.mqtt_client.publish(f"vc/vehicle/{assigned_vehicle}/job/assign", json.dumps(job), qos=1)
         else:

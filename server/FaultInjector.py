@@ -12,7 +12,6 @@ MTBBR=float(os.getenv("MTBBR", 3.6))
 RUNTIME=float(os.getenv("RUNTIME", 3600))
 
 def inject_faults_on_broker(server, folder=None):
-    print('[Midd4VCServer] Starting fault injection on broker...')
     if not folder:
         folder = os.getcwd()
     os.makedirs(folder, exist_ok=True)
@@ -36,7 +35,7 @@ def inject_faults_on_broker(server, folder=None):
                         repair = None
                 broker_status = int(server.get_server_status())
                 log_file.write((str(broker_status) + "\n"))
-                if g_time >= RUNTIME:
-                    break
+                # if g_time >= RUNTIME:
+                #     break
         except KeyboardInterrupt:
             server.stop()

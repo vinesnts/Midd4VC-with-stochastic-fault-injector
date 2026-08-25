@@ -8,7 +8,7 @@ class Vehicle:
         self.model = model
         self.make = make
         self.year = year
-    
+
     def job_handler(self, job):
         function_name = job.get("function")
         args = job.get("args", [])

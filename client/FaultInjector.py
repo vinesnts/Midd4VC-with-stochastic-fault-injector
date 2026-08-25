@@ -16,7 +16,6 @@ MTBRR=float(os.getenv("MTBRR", 17.28))
 RUNTIME=float(os.getenv("RUNTIME", 3600))
 
 def inject_faults_on_vehicle(vehicle, folder=None):
-    print(f'[Midd4VCServer] Starting fault injection on vehicle {vehicle.client_id}...')
     if not folder:
         folder = os.getcwd()
     os.makedirs(folder, exist_ok=True)
@@ -33,7 +32,9 @@ def inject_faults_on_vehicle(vehicle, folder=None):
                 g_time += 1
                 if fail is not None:
                     if g_time >= fail:
+                        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')};VEHICLE_FAULT_INJECTOR;NULL;STOPPING;{vehicle.client_id};NULL")
                         vehicle.stop()
+                        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')};VEHICLE_FAULT_INJECTOR;NULL;STOPPED;{vehicle.client_id};NULL")
                         if fail == vehicle_failure:
                             vehicle_repair = np.random.exponential(scale=MTBVR) + g_time
                             fail = None
@@ -44,19 +45,29 @@ def inject_faults_on_vehicle(vehicle, folder=None):
                             rental = None
                 elif vehicle_repair is not None:
                     if g_time >= vehicle_repair:
+                        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')};VEHICLE_FAULT_INJECTOR;NULL;STARTING;{vehicle.client_id};NULL")
                         vehicle.start()
+                        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')};VEHICLE_FAULT_INJECTOR;NULL;STARTED;{vehicle.client_id};NULL")
                         vehicle_failure = np.random.exponential(scale=MTBVF) + g_time
-                        fail = min(vehicle_failure, rental if rental is not None else float('inf'))
+                        rental = rental \
+                            if rental is not None and g_time < rental \
+                            else np.random.exponential(scale=MTBR) + g_time
+                        fail = min(vehicle_failure, rental)
                         vehicle_repair = None
                 elif rental_return is not None:
                     if g_time >= rental_return:
+                        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')};VEHICLE_FAULT_INJECTOR;NULL;STARTING;{vehicle.client_id};NULL")
                         vehicle.start()
+                        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')};VEHICLE_FAULT_INJECTOR;NULL;STARTED;{vehicle.client_id};NULL")
                         rental = np.random.exponential(scale=MTBR) + g_time
-                        fail = min(rental, vehicle_failure if vehicle_failure is not None else float('inf'))
+                        vehicle_failure = vehicle_failure \
+                            if vehicle_failure is not None and g_time < vehicle_failure \
+                            else np.random.exponential(scale=MTBVF) + g_time
+                        fail = min(rental, vehicle_failure)
                         rental_return = None
                 vehicle_status = int(vehicle.get_server_status())
                 log_file.write((str(vehicle_status) + "\n"))
-                if g_time >= RUNTIME:
-                    break
+                # if g_time >= RUNTIME:
+                #     break
         except KeyboardInterrupt:
             vehicle.stop()

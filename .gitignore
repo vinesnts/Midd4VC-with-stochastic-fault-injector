@@ -45,3 +45,5 @@ desktop.ini
 pytest_cache/
 
 __init__.py
+
+*.~lock*

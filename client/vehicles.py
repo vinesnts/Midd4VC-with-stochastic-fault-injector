@@ -6,6 +6,7 @@ from Midd4VCClient import Midd4VCClient
 from FaultInjector import inject_faults_on_vehicle
 from jobs import job_catalog
 from dotenv import load_dotenv
+from datetime import datetime
 
 load_dotenv()
 
@@ -22,11 +23,14 @@ class Vehicle:
         function_name = job.get("function")
         args = job.get("args", [])
 
+        started_at = time.time()
         try:
             func = job_catalog.JOBS_CATALOG.get(function_name)
             result_value = func(*args)
             return {
                 "job_id": job["job_id"],
+                'started_at': started_at,
+                'finished_at': time.time(),
                 "vehicle_id": self.vehicle_id,
                 "result": result_value
             }
@@ -34,6 +38,7 @@ class Vehicle:
             print(f"[Vehicle] Function execution failed: '{function_name}': {e}")
             return {
                 "job_id": job.get("job_id", "unknown"),
+                'started_at': started_at,
                 "vehicle_id": self.vehicle_id,
                 "error": f"Function execution failed: {str(e)}"
             }

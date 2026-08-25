@@ -11,7 +11,8 @@ class ApplicationClient:
         self.client_id = client_id
 
     def on_job_result(self, data):
-        print(f"[{self.client_id}] Results: {data}")
+        # print(f"[{self.client_id}] Results: {data}")
+        return
 
     def start(self):
         self.client.start()
@@ -27,7 +28,7 @@ class ApplicationClient:
                 "args": [random.randint(1, 10)]
             }
 
-            print(f"[{self.client_id}] Submitting job: {job['job_id']} with args: {job['args'][0]}")
+            # print(f"[{self.client_id}] Submitting job: {job['job_id']} with args: {job['args'][0]}")
             self.client.submit_job(job)
 
             wait_time = random.uniform(min_time, max_time)
