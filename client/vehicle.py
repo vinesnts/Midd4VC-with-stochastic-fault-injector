@@ -23,7 +23,7 @@ class Vehicle:
                 "vehicle_id": self.vehicle_id,
                 "result": result_value
             }
-        except (AttributeError, ImportError, TypeError) as e:
+        except Exception as e:
             print(f"[Vehicle] Function execution failed: '{function_name}': {e}")
             return {
                 "job_id": job.get("job_id", "unknown"),

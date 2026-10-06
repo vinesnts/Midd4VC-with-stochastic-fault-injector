@@ -14,7 +14,8 @@ TOPIC_VEHICLE_REGISTER = "vc/vehicle/{vehicle_id}/register/request"
 TOPIC_VEHICLE_UNREGISTER = "vc/vehicle/{vehicle_id}/unregister/request"
 TOPIC_JOB_ASSIGN = "vc/vehicle/{vehicle_id}/job/assign"
 TOPIC_JOB_SUBMIT = "vc/client/{client_id}/job/submit"
-TOPIC_JOB_RESULT = "vc/client/{client_id}/job/result"
+TOPIC_CLIENT_RESULT = "vc/client/{client_id}/job/result"
+TOPIC_VEHICLE_RESULT = "vc/vehicle/{vehicle_id}/job/result"
 
 BROKER = os.getenv("MQTT_BROKER", "localhost")
 PORT = int(os.getenv("MQTT_PORT", 1883))
@@ -36,6 +37,8 @@ class Midd4VCClient:
         self.processed_jobs = set()
         self.running = False
         self.jobs_in_progress = dict()
+        self.cancelled_jobs = set()
+        self.jobs_lock = threading.Lock()
 
         if self.role == "vehicle":
             self.info = {
@@ -66,7 +69,7 @@ class Midd4VCClient:
         self.running = True
 
         if self.role == "client":
-            self.client.subscribe(TOPIC_JOB_RESULT.format(client_id=self.client_id), qos=0)
+            self.client.subscribe(TOPIC_CLIENT_RESULT.format(client_id=self.client_id), qos=0)
 
         elif self.role == "vehicle":
             self.client.subscribe(TOPIC_JOB_ASSIGN.format(vehicle_id=self.client_id), qos=0)
@@ -76,15 +79,11 @@ class Midd4VCClient:
 
     def stop(self):
         print(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")};VEHICLE;{self.client_id};STOPPING;NULL;NULL')
-        self.client.publish(TOPIC_VEHICLE_UNREGISTER, json.dumps(self.info), qos=0)
-
-        for job_id in self.jobs_in_progress:
-            if not self.jobs_in_progress[job_id]:
-                continue
-            # self.jobs_in_progress[job_id].terminate()
-        self.jobs_in_progress.clear()
+        with self.jobs_lock:
+            self.cancelled_jobs.update(self.jobs_in_progress)
 
         self.running = False
+        self.client.publish(TOPIC_VEHICLE_UNREGISTER, json.dumps(self.info), qos=0)
         self.client.loop_stop()
         self.client.disconnect()
         print(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")};VEHICLE;{self.client_id};STOPPED;NULL;NULL')
@@ -97,7 +96,13 @@ class Midd4VCClient:
         if "job_id" not in job:
             job["job_id"] = str(uuid4())
         job["client_id"] = self.client_id
-        self.client.publish(TOPIC_JOB_SUBMIT, json.dumps(job), qos=0)
+        topic = TOPIC_JOB_SUBMIT.format(client_id=self.client_id)
+        if not self.client.is_connected():
+            try:
+                self.client.reconnect()
+            except Exception:
+                return job["job_id"]
+        self.client.publish(topic, json.dumps(job), qos=0)
         return job["job_id"]
 
     def _internal_on_message(self, client, userdata, msg):
@@ -148,6 +153,12 @@ class Midd4VCClient:
             print(f"[Vehicle {self.client_id}] Job received without job_id, ignoring.")
             return
 
+        with self.jobs_lock:
+            if job_id in self.cancelled_jobs or not self.running:
+                print(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")};VEHICLE;{self.client_id};DISCARDED_TASK;{job_id};vehicle_unavailable')
+                self.jobs_in_progress.pop(job_id, None)
+                return
+
         if job_id in self.processed_jobs:
             print(f"[Vehicle {self.client_id}] Duplicate job {job_id} ignored.")
             return
@@ -158,43 +169,63 @@ class Midd4VCClient:
             print(f"[Vehicle {self.client_id}] Warning: client_id missing in job. Result will not be sent.")
             return
 
-        if self.job_handler:
-            print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')};VEHICLE;{self.client_id};STARTED_TASK;{job.get('job_id')};NULL")
-            result = self.job_handler(job)
-            print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')};VEHICLE;{self.client_id};FINISHED_TASK;{job.get('job_id')};NULL")
-        else:
-            function_name = job.get("function")
-            args = job.get("args", [])
+        try:
             started_at = time.time()
-            try:
-                func = job_catalog.JOBS_CATALOG.get(function_name)
-                print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')};VEHICLE;{self.client_id};STARTED_TASK;{job.get('job_id')};{func}")
-                result_value = func(*args)
-                print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')};VEHICLE;{self.client_id};FINISHED_TASK;{job.get('job_id')};{func}")
-                result = {
-                    "job_id": job_id,
-                    "started_at": started_at,
-                    "finished_at": time.time(),
-                    "vehicle_id": self.client_id,
-                    "result": result_value,
-                }
-            except Exception as e:
-                result = {
-                    "job_id": job_id,
-                    "started_at": started_at,
-                    "finished_at": time.time(),
-                    "vehicle_id": self.client_id,
-                    "error": f"Error executing job: {str(e)}"
-                }
+            if self.job_handler:
+                print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')};VEHICLE;{self.client_id};STARTED_TASK;{job.get('job_id')};NULL")
+                result = self.job_handler(job)
+            else:
+                function_name = job.get("function")
+                args = job.get("args", [])
+                try:
+                    func = job_catalog.JOBS_CATALOG.get(function_name)
+                    if func is None:
+                        raise ValueError(f"Unknown job function: {function_name}")
+                    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')};VEHICLE;{self.client_id};STARTED_TASK;{job.get('job_id')};{func}")
+                    result_value = func(*args)
+                    result = {
+                        "job_id": job_id,
+                        "started_at": started_at,
+                        "finished_at": time.time(),
+                        "vehicle_id": self.client_id,
+                        "result": result_value,
+                    }
+                except Exception as e:
+                    result = {
+                        "job_id": job_id,
+                        "started_at": started_at,
+                        "finished_at": time.time(),
+                        "vehicle_id": self.client_id,
+                        "error": f"Error executing job: {str(e)}"
+                    }
 
-        self.client.publish(TOPIC_JOB_RESULT.format(client_id=client_id), json.dumps(result), qos=0)
+            # Handlers are allowed to return only their domain result.  The
+            # transport envelope is completed here so the manager can route
+            # the response without knowing anything about its contents.
+            result.setdefault("job_id", job_id)
+            result.setdefault("vehicle_id", self.client_id)
+            result.setdefault("client_id", client_id)
+            result.setdefault("started_at", started_at)
+            result.setdefault("finished_at", time.time())
+
+            with self.jobs_lock:
+                cancelled = job_id in self.cancelled_jobs
+            if cancelled:
+                print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')};VEHICLE;{self.client_id};DISCARDED_TASK;{job_id};vehicle_unavailable")
+                return
+            print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')};VEHICLE;{self.client_id};FINISHED_TASK;{job_id};NULL")
+            self.client.publish(TOPIC_VEHICLE_RESULT.format(vehicle_id=self.client_id), json.dumps(result), qos=0)
+        finally:
+            with self.jobs_lock:
+                self.jobs_in_progress.pop(job_id, None)
+                self.cancelled_jobs.discard(job_id)
 
     def _on_connect(self, client, userdata, flags, rc):
         # print(f"[{self.role.capitalize()} {self.client_id}] Connected to broker with code: {rc}")
         print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')};VEHICLE;{self.client_id};CONNECTING_TO_BROKER;NULL;NULL")
         if rc == 0:
             if self.role == "client":
-                self.client.subscribe(TOPIC_JOB_RESULT.format(client_id=self.client_id), qos=0)
+                self.client.subscribe(TOPIC_CLIENT_RESULT.format(client_id=self.client_id), qos=0)
             elif self.role == "vehicle":
                 self.client.subscribe(TOPIC_JOB_ASSIGN.format(vehicle_id=self.client_id), qos=0)
             print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')};VEHICLE;{self.client_id};CONNECTED_TO_BROKER;NULL;NULL")

@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="820" viewBox="0 0 1400 820" role="img" aria-labelledby="title desc">
+  <title id="title">Midd4VC module division</title>
+  <desc id="desc">The core system, monitor, fault injector and rental event generator communicate through the EMQX MQTT broker and shared control layer.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#394150"/>
+    </marker>
+    <style>
+      .title { font: 700 28px sans-serif; fill: #172033; }
+      .section { font: 700 20px sans-serif; fill: #172033; }
+      .label { font: 700 17px sans-serif; fill: #172033; }
+      .small { font: 14px sans-serif; fill: #3f4858; }
+      .edge { stroke: #394150; stroke-width: 2.2; fill: none; marker-end: url(#arrow); }
+      .dashed { stroke-dasharray: 8 6; }
+      .core { fill: #e8f1ff; stroke: #356ae6; stroke-width: 2; }
+      .external { fill: #fff4df; stroke: #d89000; stroke-width: 2; }
+      .broker { fill: #e9f8ee; stroke: #31945a; stroke-width: 2.5; }
+      .control { fill: #f4e8ff; stroke: #8b4bc1; stroke-width: 2; }
+      .output { fill: #f1f1f1; stroke: #777; stroke-width: 2; }
+    </style>
+  </defs>
+
+  <rect width="1400" height="820" fill="#ffffff"/>
+  <text x="700" y="44" text-anchor="middle" class="title">Midd4VC modular architecture</text>
+
+  <rect x="35" y="78" width="615" height="430" rx="18" fill="#f7faff" stroke="#356ae6" stroke-width="2"/>
+  <text x="60" y="112" class="section">Core system</text>
+
+  <rect x="70" y="145" width="250" height="92" rx="12" class="core"/>
+  <text x="195" y="178" text-anchor="middle" class="label">Application generator</text>
+  <text x="195" y="204" text-anchor="middle" class="small">client/applications.py</text>
+
+  <rect x="365" y="145" width="250" height="92" rx="12" class="core"/>
+  <text x="490" y="178" text-anchor="middle" class="label">Midd4VC server</text>
+  <text x="490" y="204" text-anchor="middle" class="small">server/Midd4VCServer.py</text>
+
+  <rect x="217" y="310" width="250" height="92" rx="12" class="core"/>
+  <text x="342" y="343" text-anchor="middle" class="label">Vehicle workers</text>
+  <text x="342" y="369" text-anchor="middle" class="small">client/vehicles.py</text>
+
+  <path d="M320 191 L365 191" class="edge"/>
+  <path d="M490 237 L405 310" class="edge"/>
+  <path d="M217 356 L160 237" class="edge"/>
+  <text x="342" y="285" text-anchor="middle" class="small">job assignment/results</text>
+
+  <rect x="735" y="115" width="300" height="112" rx="16" class="broker"/>
+  <text x="885" y="153" text-anchor="middle" class="label">EMQX MQTT broker</text>
+  <text x="885" y="180" text-anchor="middle" class="small">localhost:1883</text>
+  <text x="885" y="202" text-anchor="middle" class="small">data and control topics</text>
+
+  <path d="M615 178 L735 178" class="edge"/>
+  <path d="M735 214 L500 310" class="edge"/>
+  <path d="M735 145 L615 191" class="edge"/>
+
+  <rect x="735" y="285" width="300" height="92" rx="12" class="control"/>
+  <text x="885" y="318" text-anchor="middle" class="label">Shared control layer</text>
+  <text x="885" y="345" text-anchor="middle" class="small">common/control.py</text>
+
+  <path d="M885 227 L885 285" class="edge"/>
+  <path d="M735 331 L615 356" class="edge"/>
+  <text x="675" y="326" text-anchor="middle" class="small">MQTT control events</text>
+
+  <rect x="35" y="560" width="1330" height="205" rx="18" fill="#fffaf0" stroke="#d89000" stroke-width="2"/>
+  <text x="60" y="594" class="section">Independent operational modules</text>
+
+  <rect x="70" y="630" width="280" height="92" rx="12" class="external"/>
+  <text x="210" y="663" text-anchor="middle" class="label">Availability &amp; performance</text>
+  <text x="210" y="689" text-anchor="middle" class="small">monitor/monitor.py</text>
+
+  <rect x="405" y="630" width="280" height="92" rx="12" class="external"/>
+  <text x="545" y="663" text-anchor="middle" class="label">Fault injector</text>
+  <text x="545" y="689" text-anchor="middle" class="small">injector/fault_injector.py</text>
+
+  <rect x="740" y="630" width="280" height="92" rx="12" class="external"/>
+  <text x="880" y="663" text-anchor="middle" class="label">Rental / return generator</text>
+  <text x="880" y="689" text-anchor="middle" class="small">rental/rental_generator.py</text>
+
+  <rect x="1075" y="630" width="240" height="92" rx="12" class="output"/>
+  <text x="1195" y="663" text-anchor="middle" class="label">Experiment outputs</text>
+  <text x="1195" y="689" text-anchor="middle" class="small">CSV files and logs</text>
+
+  <path d="M210 630 L820 227" class="edge dashed"/>
+  <text x="390" y="493" class="small">subscribes to telemetry/events</text>
+  <path d="M545 630 L820 377" class="edge dashed"/>
+  <path d="M880 630 L900 377" class="edge dashed"/>
+  <path d="M210 722 L1075 676" class="edge dashed"/>
+  <path d="M545 722 L1075 694" class="edge dashed"/>
+  <path d="M880 722 L1075 712" class="edge dashed"/>
+  <text x="915" y="594" class="small">logs / metrics</text>
+
+  <text x="700" y="800" text-anchor="middle" class="small">runme.sh orchestrates the modules for each experiment</text>
+</svg>

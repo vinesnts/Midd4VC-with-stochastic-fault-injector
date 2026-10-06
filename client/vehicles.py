@@ -2,8 +2,13 @@ import os
 import sys
 import time
 import threading
+import subprocess
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from Midd4VCClient import Midd4VCClient
-from FaultInjector import inject_faults_on_vehicle
+from common.control import ControlListener, publish_event
 from jobs import job_catalog
 from dotenv import load_dotenv
 from datetime import datetime
@@ -34,7 +39,7 @@ class Vehicle:
                 "vehicle_id": self.vehicle_id,
                 "result": result_value
             }
-        except (AttributeError, ImportError, TypeError) as e:
+        except Exception as e:
             print(f"[Vehicle] Function execution failed: '{function_name}': {e}")
             return {
                 "job_id": job.get("job_id", "unknown"),
@@ -47,16 +52,49 @@ def run_vehicle(vehicle_id, with_fault=False, folder=None):
     vehicle = Vehicle(vehicle_id=vehicle_id, model="ModelX", make="MakeY", year=2020)
     vc = Midd4VCClient(role="vehicle", client_id=vehicle.vehicle_id, model=vehicle.model, make=vehicle.make, year=vehicle.year)
     vc.set_job_handler(vehicle.job_handler)
-    vc.start()
+    reasons = set()
+    state_lock = threading.Lock()
 
+    def handle_command(command):
+        action = command.get("action")
+        reason = command.get("reason", "external")
+        with state_lock:
+            if action == "stop":
+                was_available = not reasons
+                reasons.add(reason)
+                if was_available:
+                    vc.stop()
+                    publish_event(vehicle_id, "stopped", reason, "vehicle")
+            elif action == "start":
+                reasons.discard(reason)
+                if not reasons and not vc.get_server_status():
+                    vc.start()
+                    publish_event(vehicle_id, "started", reason, "vehicle")
+
+    control = ControlListener(vehicle_id, handle_command, source="vehicle")
+    control.start()
+    vc.start()
+    publish_event(vehicle_id, "started", "lifecycle", "vehicle")
+    compatibility_processes = []
     if with_fault:
-        inject_faults_on_vehicle(vc, folder)
-    else:
-        try:
-            while True:
-                time.sleep(10)
-        except KeyboardInterrupt:
-            print(f"Stopping vehicle {vehicle_id}...")
+        root = Path(__file__).resolve().parents[1]
+        for script in ("injector/fault_injector.py", "rental/rental_generator.py"):
+            command = [sys.executable, str(root / script), vehicle_id]
+            if script.startswith("injector"):
+                command.insert(2, "vehicle")
+            if folder:
+                command.extend(["--output-dir", folder])
+            compatibility_processes.append(subprocess.Popen(command))
+    try:
+        while True:
+            time.sleep(10)
+    except KeyboardInterrupt:
+        print(f"Stopping vehicle {vehicle_id}...")
+    finally:
+        for process in compatibility_processes:
+            process.terminate()
+        control.stop()
+        if vc.get_server_status():
             vc.stop()
 
 if __name__ == "__main__":

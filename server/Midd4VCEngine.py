@@ -68,13 +68,16 @@ class Midd4VCEngine:
         if vehicle_id not in self.vehicles:
             print(f"[Midd4VCServer] Vehicle {vehicle_id} already unregistered.")
             self.try_assign_jobs()
-            return
+            return []
 
         jobs_killed = [job_id for job_id, v_id in self.jobs_in_progress.items() if v_id == vehicle_id]
-        for job in jobs_killed:
-            del self.jobs_in_progress[job]
+        for job_id in jobs_killed:
+            self.jobs_in_progress.pop(job_id, None)
+            self.job_assignments.pop(job_id, None)
 
         del self.vehicles[vehicle_id]
+        self.try_assign_jobs()
+        return jobs_killed
 
     def submit_job(self, job):
         if "job_id" not in job or "function" not in job or "client_id" not in job:
@@ -102,8 +105,12 @@ class Midd4VCEngine:
         if job_id in self.jobs_in_progress:
             del self.jobs_in_progress[job_id]
             success = True
-        # else:
-        #     print(f"[Midd4VCServer] job {job_id} not found in progress for vehicle {vehicle_id}")
+        else:
+            # A duplicate or late vehicle result must not be forwarded back
+            # to the requester.  Forwarding it would create a feedback loop
+            # when the manager subscribes to result topics.
+            print(f"[Midd4VCServer] Ignoring duplicate result for job {job_id}")
+            return False
 
         if job_id in self.job_assignments:
             del self.job_assignments[job_id]
@@ -161,4 +168,3 @@ class Midd4VCEngine:
         else:
             print(f"[Midd4VCEngine] No valid assignment strategy found. Using 'least_loaded' fallback.")
             # ASSIGNMENT_STRATEGIES["least_loaded"](self)
-

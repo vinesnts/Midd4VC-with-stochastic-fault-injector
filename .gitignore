@@ -4,6 +4,7 @@ ENV/
 env/
 .venv/
 .env
+experiments/gui_configs/
 
 # Arquivos Python compilados
 __pycache__/
